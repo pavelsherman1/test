@@ -1,0 +1,106 @@
+###############################################################################
+# mediamtx configuration for Wyze RTSP Bridge
+#
+# Environment variables used (set via Docker):
+#   MTX_PUBLISH_USER    – internal username the bridge uses to publish
+#   MTX_PUBLISH_PASS    – internal password the bridge uses to publish
+#   RTSP_USER           – username clients must supply to read streams
+#   RTSP_PASSWORD       – password clients must supply to read streams
+#   RTSP_PORT           – RTSP listen port (default 8554)
+#   HLS_PORT            – HLS listen port (default 8888)
+#   API_PORT            – management API port (default 9997, loopback only)
+###############################################################################
+
+# ── Network ────────────────────────────────────────────────────────────────
+
+# RTSP (standard protocol; what Home Assistant uses)
+rtspAddress: :${RTSP_PORT:-8554}
+
+# RTMP (disabled — not needed)
+rtmp: no
+
+# HLS (HTTP Live Streaming — useful for browser access)
+hls: yes
+hlsAddress: :${HLS_PORT:-8888}
+hlsAlwaysRemux: yes
+hlsSegmentCount: 3
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+# WebRTC (disabled — reduces attack surface)
+webrtc: no
+
+# SRT (disabled)
+srt: no
+
+# ── Management API (loopback only — never exposed externally) ──────────────
+api: yes
+apiAddress: 127.0.0.1:${API_PORT:-9997}
+
+# Disable Prometheus metrics endpoint
+metrics: no
+
+# ── Logging ────────────────────────────────────────────────────────────────
+logLevel: warn
+logDestinations: [stdout]
+
+# ── Playback API ───────────────────────────────────────────────────────────
+playback: no
+
+# ── Authentication ─────────────────────────────────────────────────────────
+#
+# Two separate credential pairs:
+#
+#   Publish (bridge → mediamtx):
+#     User:  MTX_PUBLISH_USER  (auto-generated on each container start)
+#     Pass:  MTX_PUBLISH_PASS  (auto-generated on each container start)
+#
+#   Read (Home Assistant / any RTSP client → mediamtx):
+#     User:  RTSP_USER         (set by operator, may be empty for no auth)
+#     Pass:  RTSP_PASSWORD
+#
+# If RTSP_USER is empty, read access is unauthenticated (useful for a
+# fully trusted local network; not recommended otherwise).
+#
+authMethod: internal
+authInternalUsers:
+  # Bridge publisher — full access on all paths
+  - user: ${MTX_PUBLISH_USER}
+    pass: ${MTX_PUBLISH_PASS}
+    permissions:
+      - action: publish
+        path: ""
+      - action: read
+        path: ""
+      - action: playback
+        path: ""
+
+  # External readers — read-only access to all streams
+  # If RTSP_USER/RTSP_PASSWORD are empty, this section has no effect and
+  # any client can read (authMethod still enforces publish restrictions).
+  - user: ${RTSP_USER:-any}
+    pass: ${RTSP_PASSWORD:-}
+    permissions:
+      - action: read
+        path: ""
+      - action: playback
+        path: ""
+
+# ── Path defaults ──────────────────────────────────────────────────────────
+pathDefaults:
+  # Do not record streams to disk by default
+  record: no
+
+  # Reject publisher if path is already being published
+  # (prevents stream hijacking)
+  overridePublisher: no
+
+  # Buffer one segment worth of frames for late-joining readers
+  # Reduces "black screen on connect" for slow clients
+  sourceOnDemand: no
+
+# ── Per-path configuration ─────────────────────────────────────────────────
+paths:
+  # Catch-all: any path can be published to (the bridge names its own paths)
+  all_others:
+    record: no
