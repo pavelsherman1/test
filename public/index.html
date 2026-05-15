@@ -758,7 +758,8 @@ let STATE = {
   mode: 'unknown', // 'api' | 'local' | 'unknown'
   serverUpdatedAt: null,
   lastLocalWrite: 0,
-  pollInFlight: false
+  pollInFlight: false,
+  pendingWrites: 0
 };
 
 /* ----- Storage layer (API or localStorage) ----- */
@@ -804,6 +805,7 @@ function persistLocal() {
 
 async function persistAdd(task) {
   STATE.lastLocalWrite = Date.now();
+  STATE.pendingWrites++;
   if (STATE.mode === 'api') {
     try {
       const res = await fetch('/api/tasks', {
@@ -818,14 +820,18 @@ async function persistAdd(task) {
     } catch (e) {
       setSyncStatus('error', 'sync error');
       toast('Sync failed — try again');
+    } finally {
+      STATE.pendingWrites--;
     }
   } else {
+    STATE.pendingWrites--;
     persistLocal();
   }
 }
 
 async function persistUpdate(id, fields) {
   STATE.lastLocalWrite = Date.now();
+  STATE.pendingWrites++;
   if (STATE.mode === 'api') {
     try {
       const res = await fetch('/api/tasks/' + encodeURIComponent(id), {
@@ -840,14 +846,18 @@ async function persistUpdate(id, fields) {
     } catch (e) {
       setSyncStatus('error', 'sync error');
       toast('Sync failed — try again');
+    } finally {
+      STATE.pendingWrites--;
     }
   } else {
+    STATE.pendingWrites--;
     persistLocal();
   }
 }
 
 async function persistDelete(id) {
   STATE.lastLocalWrite = Date.now();
+  STATE.pendingWrites++;
   if (STATE.mode === 'api') {
     try {
       const res = await fetch('/api/tasks/' + encodeURIComponent(id), { method: 'DELETE' });
@@ -858,8 +868,11 @@ async function persistDelete(id) {
     } catch (e) {
       setSyncStatus('error', 'sync error');
       toast('Sync failed — try again');
+    } finally {
+      STATE.pendingWrites--;
     }
   } else {
+    STATE.pendingWrites--;
     persistLocal();
   }
 }
@@ -868,9 +881,10 @@ async function persistDelete(id) {
 async function pollForChanges() {
   if (STATE.mode !== 'api') return;
   if (STATE.pollInFlight) return;
+  if (STATE.pendingWrites > 0) return;    // wait for in-flight writes to land
   if (STATE.editingId) return;            // don't disrupt user mid-edit
   if (document.hidden) return;             // skip when tab not visible
-  if (Date.now() - STATE.lastLocalWrite < 1500) return; // recent local write — give it a beat
+  if (Date.now() - STATE.lastLocalWrite < 2000) return; // recent local write — give it a beat
 
   STATE.pollInFlight = true;
   try {
