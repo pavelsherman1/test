@@ -1,134 +1,130 @@
-# Wyze RTSP Bridge
+# 🚀 Ethan's Mission Control
 
-Exposes Wyze camera streams as standard RTSP, suitable for Home Assistant,
-Blue Iris, Frigate, or any project that speaks RTSP.
+Birthday party task tracker for Ethan's 2nd birthday — **Sunday, May 17, 2026**.
 
-## How it works
+Two phases:
+1. **Catch Air** (2:00–4:00 PM) — open play + party room
+2. **Home** (~4:30–6:00 PM) — family dinner with Chinese food
 
-```
-Wyze camera  ──TUTK P2P──►  Python bridge  ──H.264──►  FFmpeg  ──RTSP──►  mediamtx
-                                                                               │
-                                                                    ┌──────────┘
-                                                                    ▼
-                                                           Home Assistant / VLC / ...
-```
+This app coordinates every task across Pavel, Irina, Babushka, and Toby with a shared, browser-based command center.
 
-1. The Python bridge authenticates with Wyze and opens a P2P connection to each camera using the TUTK/IoTCamera SDK (bundled with the `wyzecam` Python package).
-2. Raw H.264 video frames are piped to an FFmpeg process per camera.
-3. FFmpeg scales, limits bitrate/fps, and pushes to the bundled [mediamtx](https://github.com/bluenviron/mediamtx) RTSP server.
-4. Clients connect to `rtsp://<host>:8554/<camera_name>`.
+---
 
-## Quick start
+## ✨ What it does
+
+- **Day-grouped timeline** of every task with assignee, time, phase, and category
+- **Sunday split into phases** (Phase 1 Setup → Catch Air → Transition → Phase 2 Setup → Home)
+- **Check off / edit / add / delete** any task; changes persist instantly
+- **Per-person progress chips** — tap one to filter to just that person's tasks
+- **Search + filters** by day, status, assignee
+- **Countdown** to liftoff (2:00 PM Sunday)
+- **📧 Email export** — opens your mail app pre-filled with the formatted task list
+- **📅 Calendar export** — downloads a `.ics` file you can drop into Google Calendar, iCloud, Outlook
+  - Per-task calendar button on every card
+  - Bulk export button for everything visible
+- **Shared state across users** when deployed to a server (everyone sees the same checkboxes update in real time on refresh)
+- **Falls back to localStorage** when run as a static file (no server needed)
+- **Mobile-friendly** — Irina can update tasks from her phone while at Whole Foods
+
+---
+
+## 🏃 Quick start (local)
 
 ```bash
-cp .env.example .env
-# Edit .env with your Wyze credentials and desired quality settings
-nano .env
-
-docker compose up -d
-docker compose logs -f
+npm install
+npm start
+# → http://localhost:3000
 ```
 
-Stream URL: `rtsp://RTSP_USER:RTSP_PASSWORD@<YOUR_IP>:8554/<camera_name>`
+---
 
-Camera names are derived from the friendly name you set in the Wyze app (spaces replaced with underscores).
+## 🐳 Deploy to Unraid
 
-## Configuration
+### Option A — docker-compose (recommended)
 
-All configuration is via environment variables in `.env`.
+1. SSH into your Unraid box (or use the terminal in the WebUI).
+2. Copy the entire `ethan-bday` folder to `/mnt/user/appdata/ethan-bday`:
+   ```bash
+   mkdir -p /mnt/user/appdata/ethan-bday
+   # then copy contents
+   ```
+3. Build and run:
+   ```bash
+   cd /mnt/user/appdata/ethan-bday
+   docker compose up -d --build
+   ```
+4. Open `http://192.168.1.180:3010` (your Unraid IP + the host port from `docker-compose.yml`).
 
-| Variable | Default | Description |
-|---|---|---|
-| `WYZE_EMAIL` | — | Wyze account email **(required)** |
-| `WYZE_PASSWORD` | — | Wyze account password **(required)** |
-| `WYZE_TOTP_KEY` | — | Base32 TOTP secret for 2FA accounts |
-| `CAMERAS` | *(all)* | Comma-separated camera names or MACs to bridge |
-| `QUALITY` | `HD` | `HD`, `720p`, `480p`, `SD`, `360p`, or `WxH` (e.g. `1280x720`) |
-| `BITRATE` | `2000k` | Target video bitrate (`500k`, `2000k`, `4M`, etc.) |
-| `MAX_BITRATE` | `1.5×BITRATE` | Hard ceiling on bitrate |
-| `FPS` | `20` | Output frames per second (1–60) |
-| `ENCODER_PRESET` | `ultrafast` | FFmpeg preset (`ultrafast`…`medium`) |
-| `BUFFER_SIZE` | `4M` | FFmpeg output buffer; larger = smoother, higher latency |
-| `AUDIO` | `true` | Include audio in the RTSP stream |
-| `RTSP_PORT` | `8554` | RTSP server port |
-| `HLS_PORT` | `8888` | HLS server port (browser access) |
-| `RTSP_USER` | — | Client read username (recommended) |
-| `RTSP_PASSWORD` | — | Client read password (recommended) |
-| `RECONNECT_DELAY` | `5` | Seconds between reconnect attempts |
-| `DEBUG` | `false` | Verbose logging (never logs credentials) |
+### Option B — Unraid Community Apps style
 
-### Bandwidth guide
+Add a new container in the Unraid UI with:
 
-| Setting | Approximate bitrate |
+| Setting | Value |
 |---|---|
-| `QUALITY=360p BITRATE=500k FPS=10` | ~0.5 Mbit/s per camera |
-| `QUALITY=SD BITRATE=1000k FPS=15` | ~1 Mbit/s per camera |
-| `QUALITY=HD BITRATE=2000k FPS=20` | ~2 Mbit/s per camera *(default)* |
-| `QUALITY=HD BITRATE=4M FPS=30` | ~4 Mbit/s per camera |
+| Name | `ethan-bday` |
+| Repository | (build locally: `ethan-bday:latest`) |
+| Network Type | Bridge |
+| Port | Host `3010` → Container `3000` |
+| Path | Host `/mnt/user/appdata/ethan-bday/data` → Container `/app/data` (Read/Write) |
 
-## Unraid setup
+---
 
-1. In Unraid → **Community Applications**, search for or install the container manually.
-2. Under **Docker** → **Add Container**:
-   - **Repository**: `your-registry/wyze-rtsp-bridge:latest` (or build locally)
-   - **Port**: `8554` → `8554` (RTSP), `8888` → `8888` (HLS, optional)
-   - **Environment variables**: Add each variable from `.env.example`
-3. Start the container and check the log for stream URLs.
+## 🌐 Expose at ethan-tasks.pavelsherman.com
 
-Alternatively, place this repository on your Unraid server and run:
+You already run a reverse proxy for `ethan.pavelsherman.com` and `nexus.pavelsherman.com`. Pattern matches — add an entry for the new subdomain pointing at `http://<unraid-ip>:3010`. If you use Nginx Proxy Manager, swordfish-fast: add a new Proxy Host, scheme `http`, forward hostname your Unraid IP, port `3010`, then attach your existing wildcard cert.
 
+---
+
+## 🗂️ File layout
+
+```
+ethan-bday/
+├── Dockerfile
+├── docker-compose.yml
+├── package.json
+├── server.js              # Express server + /api/tasks
+├── data/
+│   └── tasks.json         # Persisted state (volume-mounted)
+└── public/
+    └── index.html         # The whole frontend in one file
+```
+
+---
+
+## 🔌 API
+
+| Method | Path | Body | Returns |
+|---|---|---|---|
+| `GET` | `/api/tasks` | — | `{ tasks: [...] }` |
+| `PUT` | `/api/tasks` | `{ tasks: [...] }` | `{ ok: true, count: N }` |
+| `GET` | `/api/health` | — | `{ ok: true, time: ... }` |
+
+The frontend tries the API first; if it 404s (e.g. you opened the HTML file directly), it falls back to `localStorage`.
+
+---
+
+## 🔁 Reset / re-seed
+
+To wipe state and re-seed from the original 31 tasks:
 ```bash
-docker compose up -d
+rm /mnt/user/appdata/ethan-bday/data/tasks.json
+docker restart ethan-bday
 ```
+The container repopulates from the bundled `data-seed/tasks.json` on startup.
 
-## Home Assistant integration
+---
 
-After the bridge is running, add a camera in `configuration.yaml`:
+## 📅 The plan (TL;DR)
 
-```yaml
-camera:
-  - platform: generic
-    name: Front Door
-    still_image_url: "http://<YOUR_IP>:8888/Front_Door/index.m3u8"
-    stream_source: "rtsp://viewer:your_password@<YOUR_IP>:8554/Front_Door"
-    verify_ssl: false
-```
+- **Thu May 14** — Pavel: daycare $, Whole Foods recon, bowls, candle, card, text waivers. Irina: confirm daycare pizza, email Elina. Babushka: Costco.
+- **Fri May 15** — Pavel: drop off Ethan. Irina: cupcakes @ noon → daycare; Mother's Day @ 4 PM. Babushka: ShopRite.
+- **Sat May 16** — Clean house, pack Sunday gear, stage tables.
+- **Sun May 17** —
+  - AM: Toby gets cake, Babushka to house, Pavel picks up Emily & Ella at 11.
+  - 1:15 PM: Irina + Toby leave with everything → Whole Foods → Catch Air.
+  - 2:00 PM: Pavel arrives with Ethan. Open play.
+  - 2:45 PM: Party room set-up with coordinator.
+  - 3:20–4:00 PM: Eat, cake, gift bags.
+  - 4:30–6:00 PM: Family at home, Chinese delivery, leftover cake.
 
-Or use the **Generic Camera** integration in the UI with the RTSP URL.
-
-## Security
-
-- **No credentials are stored on disk.** All secrets exist only in container memory and your `.env` file.
-- The `.env` file is gitignored — never commit it.
-- The mediamtx management API binds to `127.0.0.1` inside the container and is never exposed on the host.
-- The container runs as a **non-root user** (UID 1000) with no Linux capabilities.
-- Publish credentials (bridge → mediamtx) are **auto-generated on every container start** and are never exposed to clients.
-- RTSP read authentication is enabled by default via `RTSP_USER` / `RTSP_PASSWORD`. Using a strong, unique password is strongly recommended even on a local network.
-- Credentials are **masked in all log output** even at `DEBUG` level.
-
-## Supported camera models
-
-Any Wyze camera supported by the `wyzecam` Python library:
-
-- Wyze Cam v1, v2, v3, v3 Pro
-- Wyze Cam Pan v1, v2, v3
-- Wyze Cam Outdoor v1, v2
-- Wyze Cam Floodlight
-
-## Troubleshooting
-
-**Stream not showing up**
-- Check `docker compose logs` for auth or TUTK errors.
-- Verify the camera is online in the Wyze app.
-- If you have many cameras, add `CAMERAS=Camera Name` to limit to one.
-
-**2FA error**
-- Set `WYZE_TOTP_KEY` to the *base32 secret* shown during 2FA setup, not the 6-digit code.
-
-**High CPU usage**
-- Set `ENCODER_PRESET=ultrafast` (already the default).
-- Reduce `FPS` or `QUALITY`.
-- Use hardware-accelerated encoding if your host supports it (requires customising the FFmpeg command in `stream.py`).
-
-**TUTK library not found**
-- The `wyzecam` pip package bundles the TUTK `.so` for `linux/amd64` and `linux/arm64`. If you see warnings, ensure you're running on a supported architecture.
+🎂 Built with love (and a lot of moving parts).

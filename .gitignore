@@ -1,24 +1,9 @@
-# Secrets — NEVER commit
+node_modules/
+npm-debug.log
+.DS_Store
 .env
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-dist/
-build/
-.venv/
-venv/
-*.whl
 
 # Editor
 .vscode/
 .idea/
 *.swp
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Docker build artifacts
-*.tar.gz

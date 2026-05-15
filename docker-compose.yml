@@ -1,73 +1,31 @@
-###############################################################################
-# Wyze RTSP Bridge — Docker Compose
-#
-# Copy .env.example to .env, fill in your credentials, then run:
-#
-#   docker compose up -d
-#
-# Home Assistant integration:
-#   rtsp://<YOUR_IP>:8554/<camera_name>
-#   (with RTSP_USER / RTSP_PASSWORD if set)
-###############################################################################
+version: "3.8"
 
 services:
-  wyze-bridge:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: wyze-rtsp-bridge
+  ethan-bday:
+    build: .
+    image: ethan-bday:latest
+    container_name: ethan-bday
     restart: unless-stopped
-
-    # ── Credentials (via .env file — never hardcode here) ────────────────
-    env_file:
-      - .env
-
-    # ── Port mapping ─────────────────────────────────────────────────────
     ports:
-      # RTSP  — used by Home Assistant, VLC, any RTSP client
-      - "${RTSP_PORT:-8554}:8554/tcp"
-      # HLS   — browser-accessible streams (optional, comment out to disable)
-      - "${HLS_PORT:-8888}:8888/tcp"
-      # NOTE: The mediamtx management API (9997) is intentionally NOT exposed
-      #       outside the container; it binds to 127.0.0.1 inside.
+      # Change the LEFT side if 3010 is in use on your Unraid box
+      - "3010:3000"
+    volumes:
+      # Persist tasks.json on the host so it survives container rebuilds
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATA_DIR=/app/data
+    labels:
+      - "com.sherman.app=ethan-bday"
+      - "com.sherman.subdomain=ethan-tasks"
+    networks:
+      - default
 
-    # ── Unraid / host networking notes ───────────────────────────────────
-    # For Unraid, you may prefer network_mode: bridge (the default above).
-    # If your cameras require mDNS/multicast discovery, uncomment this line
-    # and remove the ports section above:
-    # network_mode: host
-
-    # ── Resource limits (adjust for your hardware) ───────────────────────
-    deploy:
-      resources:
-        limits:
-          # Each camera stream uses roughly 50–150 MB RAM and 5–15% CPU
-          # depending on resolution and bitrate settings.
-          memory: 1g
-        reservations:
-          memory: 128m
-
-    # ── Health check ─────────────────────────────────────────────────────
-    healthcheck:
-      test: ["/app/healthcheck.sh"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-    # ── Logging ──────────────────────────────────────────────────────────
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-    # ── Security hardening ───────────────────────────────────────────────
-    security_opt:
-      - no-new-privileges:true
-    read_only: false    # mediamtx needs a small /tmp; set true if you add tmpfs
-    # tmpfs:
-    #   - /tmp:size=32m,noexec,nosuid
-    cap_drop:
-      - ALL             # Drop all Linux capabilities
-    cap_add: []         # Add none back (ffmpeg/mediamtx don't need special caps)
+# If you want to put this behind your existing reverse proxy (e.g. for
+# ethan-tasks.pavelsherman.com), add it to the same external network:
+#
+# networks:
+#   default:
+#     external: true
+#     name: proxy
