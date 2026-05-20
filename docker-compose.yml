@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  ethan-bday:
+    build: .
+    image: ethan-bday:latest
+    container_name: ethan-bday
+    restart: unless-stopped
+    ports:
+      # Change the LEFT side if 3010 is in use on your Unraid box
+      - "3010:3000"
+    volumes:
+      # Persist tasks.json on the host so it survives container rebuilds
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATA_DIR=/app/data
+    labels:
+      - "com.sherman.app=ethan-bday"
+      - "com.sherman.subdomain=ethan-tasks"
+    networks:
+      - default
+
+# If you want to put this behind your existing reverse proxy (e.g. for
+# ethan-tasks.pavelsherman.com), add it to the same external network:
+#
+# networks:
+#   default:
+#     external: true
+#     name: proxy

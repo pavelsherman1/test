@@ -1,0 +1,18 @@
+{
+  "name": "ethan-bday-mission-control",
+  "version": "1.0.0",
+  "description": "Birthday party task tracker for Ethan's 2nd birthday (May 17, 2026)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "Sherman Family",
+  "license": "MIT"
+}
